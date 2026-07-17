@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>OpenNight</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400&display=swap');
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+:root{
+  --fs-xs:clamp(9px,2vw,11px);
+  --fs-sm:clamp(11px,2.5vw,13px);
+  --fs-md:clamp(13px,3vw,15px);
+  --fs-lg:clamp(18px,5vw,24px);
+  --fs-xl:clamp(32px,10vw,64px);
+  --moon-sm:clamp(48px,16vw,80px);
+  --moon-lg:clamp(80px,22vw,120px);
+  --pad-x:clamp(20px,6vw,50px);
+  --pad-y:clamp(24px,5vh,40px);
+  --api-w:min(420px,calc(100vw - 40px));
+  --chat-w:min(760px,100vw);
+}
+
+html,body{
+  width:100%;height:100dvh;
+  background:#000;color:#fff;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  overflow:hidden;-webkit-font-smoothing:antialiased;
+  touch-action:manipulation;
+}
+@media(hover:hover)and(pointer:fine){body{cursor:none;}}
+
+#cursor{
+  position:fixed;z-index:9999;width:10px;height:10px;
+  background:white;border-radius:50%;pointer-events:none;
+  transform:translate(-50%,-50%);
+  transition:width .2s,height .2s,opacity .2s;
+  mix-blend-mode:difference;display:none;
+}
+@media(hover:hover)and(pointer:fine){#cursor{display:block;}}
+
+.screen{
+  position:fixed;inset:0;display:flex;
+  align-items:center;justify-content:center;flex-direction:column;
+  opacity:0;pointer-events:none;transition:opacity .8s ease;
+}
+.screen.active{opacity:1;pointer-events:all;}
+
+/* ── BOOT 1 ── */
+#boot1{
+  background:#000;align-items:flex-start;justify-content:flex-start;
+  padding:var(--pad-y) var(--pad-x);
+  font-family:'Courier New',monospace;font-size:var(--fs-sm);color:#ccc;
+}
+#boot1-text{line-height:1.9;white-space:pre-wrap;word-break:break-all;}
+#boot1-text span{display:block;opacity:0;}
+#boot1-text span.show{opacity:1;}
+#boot1-logo-wrap{
+  position:absolute;
+  bottom:max(clamp(24px,5vh,60px),env(safe-area-inset-bottom));
+  right:clamp(20px,5vw,60px);opacity:0;
+}
+#boot1-logo-wrap.show{animation:fadeInScale 1s ease forwards;}
+.moon-svg{width:var(--moon-sm);height:var(--moon-sm);}
+.moon-svg-large{width:var(--moon-lg);height:var(--moon-lg);}
+
+/* ── PROGRESS ── */
+#progress-wrap{
+  position:fixed;bottom:0;left:0;right:0;height:2px;
+  background:rgba(255,255,255,.08);z-index:100;opacity:0;transition:opacity .4s;
+}
+#progress-wrap.show{opacity:1;}
+#progress-bar{
+  height:100%;background:white;width:0%;transition:width .1s linear;
+  box-shadow:0 0 8px rgba(255,255,255,.8);
+}
+
+/* ── SCANLINES ── */
+#scanlines{
+  position:fixed;inset:0;z-index:50;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);
+  opacity:.4;
+}
+
+/* ── NOISE ── */
+#noise{
+  position:fixed;inset:0;z-index:49;pointer-events:none;opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:180px;animation:noiseShift .12s steps(1) infinite;
+}
+@keyframes noiseShift{
+  0%{background-position:0 0;}25%{background-position:30px -20px;}
+  50%{background-position:-15px 40px;}75%{background-position:40px 10px;}
+  100%{background-position:-10px -30px;}
+}
+
+/* ── FLASH ── */
+#flash{position:fixed;inset:0;z-index:9000;background:white;opacity:0;pointer-events:none;}
+#flash.go{animation:flashOut .5s ease forwards;}
+@keyframes flashOut{0%{opacity:1;}100%{opacity:0;}}
+
+/* ── CUTSCENE ── */
+#cutscene{background:#000;z-index:200;}
+#cutscene-inner{
+  display:flex;flex-direction:column;align-items:center;
+  gap:clamp(12px,3vw,24px);opacity:0;
+}
+#cutscene-inner.show{animation:cutsceneReveal 1.2s ease forwards;}
+@keyframes cutsceneReveal{
+  0%{opacity:0;transform:scale(.9);filter:blur(12px);}
+  100%{opacity:1;transform:scale(1);filter:blur(0);}
+}
+#cutscene-title{font-size:var(--fs-xs);letter-spacing:.4em;text-transform:uppercase;color:rgba(255,255,255,.4);font-weight:200;}
+#cutscene-word{
+  font-size:var(--fs-xl);font-weight:100;letter-spacing:.15em;
+  background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,.5) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ── API SCREEN ── */
+#apiscreen{background:#000;}
+#api-box{
+  width:var(--api-w);display:flex;flex-direction:column;
+  gap:clamp(14px,3vw,20px);opacity:0;
+}
+#api-box.show{animation:slideUp .8s cubic-bezier(.22,1,.36,1) .2s forwards;}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+.api-label{font-size:var(--fs-xs);letter-spacing:.35em;text-transform:uppercase;color:rgba(255,255,255,.35);font-weight:300;}
+.api-title{font-size:var(--fs-lg);font-weight:200;letter-spacing:.04em;color:rgba(255,255,255,.9);}
+.api-sub{font-size:var(--fs-sm);color:rgba(255,255,255,.3);font-weight:300;line-height:1.7;}
+#api-divider{width:100%;height:1px;background:rgba(255,255,255,.07);}
+#api-input{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);
+  border-radius:0;padding:clamp(12px,3vw,14px) clamp(12px,3vw,16px);
+  color:white;font-family:'Courier New',monospace;
+  font-size:max(16px,var(--fs-sm));letter-spacing:.04em;
+  outline:none;width:100%;transition:border-color .3s,box-shadow .3s;
+  -webkit-appearance:none;appearance:none;
+}
+#api-input::placeholder{color:rgba(255,255,255,.18);}
+#api-input:focus{border-color:rgba(255,255,255,.4);box-shadow:0 0 20px rgba(255,255,255,.06);}
+#api-btn{
+  background:white;color:black;border:none;border-radius:0;
+  padding:clamp(13px,3.5vw,15px) 20px;
+  font-size:var(--fs-xs);font-weight:400;letter-spacing:.12em;text-transform:uppercase;
+  cursor:pointer;transition:opacity .2s,transform .15s;
+  -webkit-tap-highlight-color:transparent;min-height:48px;
+}
+@media(hover:hover){#api-btn:hover{opacity:.85;}}
+#api-btn:active{opacity:.8;transform:scale(.98);}
+
+/* ── BOOT 2 ── */
+#boot2{background:#000;z-index:300;}
+#boot2-content{display:flex;flex-direction:column;align-items:center;gap:clamp(24px,6vw,40px);opacity:0;}
+#boot2-content.show{animation:fadeInScale 1s ease forwards;}
+.macos-progress-wrap{width:clamp(120px,40vw,180px);height:4px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;}
+#macos-bar{height:100%;width:0%;background:white;border-radius:99px;transition:width .05s linear;box-shadow:0 0 12px rgba(255,255,255,.7);}
+#boot2-name{font-size:var(--fs-xs);letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.3);font-weight:200;}
+#boot2-moon{animation:moonPulse 3s ease-in-out infinite;}
+@keyframes moonPulse{
+  0%,100%{filter:drop-shadow(0 0 20px rgba(255,255,255,.3));}
+  50%{filter:drop-shadow(0 0 50px rgba(255,255,255,.7));}
+}
+
+/* ════════════════════════════════
+   CHAT SCREEN
+════════════════════════════════ */
+#chatscreen{
+  background:#000;z-index:500;
+  flex-direction:column;align-items:stretch;justify-content:flex-start;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+
+/* ── TOPBAR ── */
+#chat-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px clamp(14px,4vw,24px);
+  border-bottom:1px solid rgba(255,255,255,.07);
+  flex-shrink:0;
+}
+#chat-topbar-left{display:flex;align-items:center;gap:10px;}
+#topbar-moon{width:22px;height:22px;}
+#topbar-name{font-size:var(--fs-sm);font-weight:300;letter-spacing:.06em;color:rgba(255,255,255,.8);}
+#topbar-status{
+  font-size:var(--fs-xs);color:rgba(255,255,255,.3);
+  font-weight:300;letter-spacing:.04em;
+}
+#topbar-model-btn{
+  font-size:var(--fs-xs);color:rgba(255,255,255,.3);
+  background:none;border:1px solid rgba(255,255,255,.1);
+  padding:5px 10px;cursor:pointer;letter-spacing:.04em;
+  -webkit-tap-highlight-color:transparent;transition:border-color .2s,color .2s;
+  border-radius:0;
+  white-space:nowrap;
+}
+@media(hover:hover){#topbar-model-btn:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:none;}}
+
+/* ── MESSAGES ── */
+#chat-messages{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding:clamp(16px,4vw,28px) clamp(14px,4vw,24px);
+  display:flex;flex-direction:column;gap:clamp(16px,3vw,24px);
+  scroll-behavior:smooth;
+}
+#chat-messages::-webkit-scrollbar{width:3px;}
+#chat-messages::-webkit-scrollbar-track{background:transparent;}
+#chat-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);}
+
+.msg{display:flex;flex-direction:column;gap:6px;max-width:min(580px,90%);}
+.msg.user{align-self:flex-end;align-items:flex-end;}
+.msg.night{align-self:flex-start;align-items:flex-start;}
+
+.msg-sender{
+  font-size:var(--fs-xs);font-weight:300;letter-spacing:.06em;
+  text-transform:uppercase;color:rgba(255,255,255,.28);
+}
+.msg.user .msg-sender{color:rgba(255,255,255,.22);}
+
+.msg-bubble{
+  padding:clamp(10px,2.5vw,13px) clamp(12px,3vw,16px);
+  font-size:var(--fs-md);font-weight:300;line-height:1.65;
+  word-break:break-word;
+}
+.msg.user .msg-bubble{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.85);
+}
+.msg.night .msg-bubble{
+  background:transparent;
+  border:1px solid rgba(255,255,255,.08);
+  color:rgba(255,255,255,.82);
+}
+
+/* image attachments in chat */
+.msg-image{
+  max-width:min(280px,80vw);border:1px solid rgba(255,255,255,.1);
+  display:block;
+}
+
+/* generated image */
+.gen-image-wrap{display:flex;flex-direction:column;gap:8px;}
+.gen-image{max-width:min(360px,85vw);border:1px solid rgba(255,255,255,.1);}
+
+/* code in bubble */
+.msg-bubble pre{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  padding:12px;margin:8px 0;overflow-x:auto;
+  font-family:'Courier New',monospace;font-size:var(--fs-xs);line-height:1.6;
+  color:rgba(255,255,255,.7);
+}
+.msg-bubble code{font-family:'Courier New',monospace;font-size:.92em;color:rgba(255,255,255,.7);}
+
+/* typing indicator */
+#typing-indicator{
+  display:none;align-self:flex-start;
+  padding:10px 16px;border:1px solid rgba(255,255,255,.08);
+  gap:5px;align-items:center;
+}
+#typing-indicator.show{display:flex;}
+.typing-dot{
+  width:5px;height:5px;background:rgba(255,255,255,.4);border-radius:50%;
+  animation:typingBounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2){animation-delay:.2s;}
+.typing-dot:nth-child(3){animation-delay:.4s;}
+@keyframes typingBounce{
+  0%,60%,100%{transform:translateY(0);}
+  30%{transform:translateY(-5px);}
+}
+
+/* ── INPUT BAR ── */
+#chat-inputbar{
+  border-top:1px solid rgba(255,255,255,.07);
+  padding:clamp(10px,2.5vw,14px) clamp(14px,4vw,24px);
+  display:flex;gap:10px;align-items:flex-end;
+  flex-shrink:0;background:#000;
+}
+#chat-attach-btn{
+  background:none;border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.4);width:44px;height:44px;
+  flex-shrink:0;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;transition:border-color .2s,color .2s;
+  border-radius:0;
+}
+@media(hover:hover){#chat-attach-btn:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:none;}}
+#chat-input{
+  flex:1;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.1);
+  color:white;padding:11px 14px;
+  font-family:'Inter',sans-serif;font-size:max(16px,var(--fs-md));
+  font-weight:300;line-height:1.4;
+  outline:none;resize:none;min-height:44px;max-height:160px;
+  -webkit-appearance:none;appearance:none;
+  transition:border-color .2s;border-radius:0;
+}
+#chat-input::placeholder{color:rgba(255,255,255,.2);}
+#chat-input:focus{border-color:rgba(255,255,255,.25);}
+#chat-send-btn{
+  background:white;color:black;border:none;
+  width:44px;height:44px;flex-shrink:0;
+  font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;transition:opacity .2s;
+  border-radius:0;
+}
+@media(hover:hover){#chat-send-btn:hover{opacity:.8;cursor:none;}}
+#chat-send-btn:active{opacity:.6;}
+#file-input{display:none;}
+#attach-preview{
+  display:none;padding:8px clamp(14px,4vw,24px);
+  border-top:1px solid rgba(255,255,255,.05);background:#000;
+  align-items:center;gap:10px;flex-shrink:0;
+}
+#attach-preview.show{display:flex;}
+#attach-thumb{width:40px;height:40px;object-fit:cover;border:1px solid rgba(255,255,255,.1);}
+#attach-name{font-size:var(--fs-xs);color:rgba(255,255,255,.4);flex:1;}
+#attach-remove{
+  background:none;border:none;color:rgba(255,255,255,.3);
+  cursor:pointer;font-size:18px;-webkit-tap-highlight-color:transparent;
+}
+
+/* ── CANVAS OVERLAY ── */
+#canvas-overlay{
+  position:fixed;inset:0;z-index:600;
+  display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;transition:opacity .4s ease;
+  background:#000;
+}
+#canvas-overlay.open{opacity:1;pointer-events:all;}
+#canvas-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px clamp(14px,4vw,24px);
+  border-bottom:1px solid rgba(255,255,255,.07);
+  flex-shrink:0;
+}
+#canvas-label{font-size:var(--fs-xs);letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.3);font-weight:300;}
+#canvas-close-btn{
+  font-size:var(--fs-xs);letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,.3);background:none;
+  border:1px solid rgba(255,255,255,.1);padding:5px 12px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:color .2s,border-color .2s;
+  border-radius:0;
+}
+@media(hover:hover){#canvas-close-btn:hover{color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.3);cursor:none;}}
+#canvas-frame{
+  flex:1;border:none;background:#fff;width:100%;
+}
+#canvas-inputbar{
+  border-top:1px solid rgba(255,255,255,.07);
+  padding:clamp(10px,2.5vw,14px) clamp(14px,4vw,24px);
+  display:flex;gap:10px;align-items:center;flex-shrink:0;
+  background:#000;padding-bottom:max(clamp(10px,2.5vw,14px),env(safe-area-inset-bottom));
+}
+#canvas-input{
+  flex:1;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.1);
+  color:white;padding:11px 14px;
+  font-family:'Inter',sans-serif;font-size:max(16px,var(--fs-md));
+  font-weight:300;outline:none;resize:none;
+  -webkit-appearance:none;appearance:none;
+  transition:border-color .2s;border-radius:0;height:44px;
+}
+#canvas-input::placeholder{color:rgba(255,255,255,.2);}
+#canvas-input:focus{border-color:rgba(255,255,255,.25);}
+#canvas-send-btn{
+  background:white;color:black;border:none;
+  width:44px;height:44px;
+  font-size:16px;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;transition:opacity .2s;
+  border-radius:0;
+}
+
+/* ── MODEL PICKER ── */
+#model-picker{
+  position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.85);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .3s;
+  backdrop-filter:blur(4px);
+}
+#model-picker.open{opacity:1;pointer-events:all;}
+#model-picker-inner{
+  width:min(500px,100vw);background:#0a0a0a;
+  border:1px solid rgba(255,255,255,.1);border-bottom:none;
+  display:flex;flex-direction:column;max-height:70vh;
+}
+#model-picker-header{
+  padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.07);
+  font-size:var(--fs-xs);letter-spacing:.2em;text-transform:uppercase;
+  color:rgba(255,255,255,.4);font-weight:300;
+  display:flex;justify-content:space-between;align-items:center;
+}
+#model-picker-close{
+  background:none;border:none;color:rgba(255,255,255,.3);
+  font-size:18px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+#model-search{
+  background:rgba(255,255,255,.04);border:none;border-bottom:1px solid rgba(255,255,255,.07);
+  color:white;padding:12px 20px;font-size:max(16px,var(--fs-sm));
+  font-family:'Inter',sans-serif;font-weight:300;outline:none;
+  -webkit-appearance:none;appearance:none;
+}
+#model-search::placeholder{color:rgba(255,255,255,.2);}
+#model-list{overflow-y:auto;flex:1;}
+.model-item{
+  padding:12px 20px;font-size:var(--fs-sm);color:rgba(255,255,255,.6);
+  font-weight:300;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;
+}
+.model-item:hover,.model-item.active{background:rgba(255,255,255,.06);color:white;}
+
+/* ── SHARED KEYFRAMES ── */
+@keyframes fadeInScale{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:scale(1);}}
+.glitch{animation:glitch .3s steps(1) forwards;}
+@keyframes glitch{
+  0%{clip-path:inset(30% 0 40% 0);transform:translateX(-4px);}
+  25%{clip-path:inset(60% 0 10% 0);transform:translateX(4px);}
+  50%{clip-path:inset(10% 0 70% 0);transform:translateX(-2px);}
+  75%{clip-path:inset(80% 0 5% 0);transform:translateX(2px);}
+  100%{clip-path:none;transform:none;}
+}
+@keyframes shake{
+  0%,100%{transform:translateX(0);}20%{transform:translateX(-6px);}
+  40%{transform:translateX(6px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="scanlines"></div>
+<div id="noise"></div>
+<div id="flash"></div>
+<div id="progress-wrap"><div id="progress-bar"></div></div>
+
+<!-- BOOT 1 -->
+<div class="screen active" id="boot1">
+  <div id="boot1-text"></div>
+  <div id="boot1-logo-wrap">
+    <svg class="moon-svg" viewBox="0 0 100 100" fill="none">
+      <path d="M50 10 C28 10 10 28 10 50 C10 72 28 90 50 90 C38 82 30 66 30 50 C30 34 38 18 50 10Z" fill="white"/>
+      <path d="M68 28 L70 36 L78 38 L70 40 L68 48 L66 40 L58 38 L66 36Z" fill="white"/>
+    </svg>
+  </div>
+</div>
+
+<!-- CUTSCENE -->
+<div class="screen" id="cutscene">
+  <div id="cutscene-inner">
+    <div id="cutscene-title">initializing</div>
+    <div id="cutscene-word">opennight</div>
+  </div>
+</div>
+
+<!-- API KEY -->
+<div class="screen" id="apiscreen">
+  <div id="api-box">
+    <div class="api-label">Step 01 — Authentication</div>
+    <div class="api-title">Enter your API key</div>
+    <div class="api-sub">Requesty API key. Never leaves your device.</div>
+    <div id="api-divider"></div>
+    <input id="api-input" type="password" placeholder="Your Requesty key..." autocomplete="off" spellcheck="false"/>
+    <button id="api-btn">Continue →</button>
+  </div>
+</div>
+
+<!-- BOOT 2 -->
+<div class="screen" id="boot2">
+  <div id="boot2-content">
+    <svg id="boot2-moon" class="moon-svg-large" viewBox="0 0 100 100" fill="none">
+      <path d="M50 8 C26 8 8 26 8 50 C8 74 26 92 50 92 C36 84 27 68 27 50 C27 32 36 16 50 8Z" fill="white"/>
+      <path d="M70 26 L72.5 35 L81.5 37.5 L72.5 40 L70 49 L67.5 40 L58.5 37.5 L67.5 35Z" fill="white"/>
+    </svg>
+    <div class="macos-progress-wrap"><div id="macos-bar"></div></div>
+    <div id="boot2-name">opennight</div>
+  </div>
+</div>
+
+<!-- CHAT SCREEN -->
+<div class="screen" id="chatscreen">
+  <div id="chat-topbar">
+    <div id="chat-topbar-left">
+      <svg id="topbar-moon" viewBox="0 0 100 100" fill="none">
+        <path d="M50 8 C26 8 8 26 8 50 C8 74 26 92 50 92 C36 84 27 68 27 50 C27 32 36 16 50 8Z" fill="white"/>
+        <path d="M70 26 L72.5 35 L81.5 37.5 L72.5 40 L70 49 L67.5 40 L58.5 37.5 L67.5 35Z" fill="white"/>
+      </svg>
+      <span id="topbar-name">night</span>
+      <span id="topbar-status">online</span>
+    </div>
+    <button id="topbar-model-btn">GLM-5.2</button>
+  </div>
+
+  <div id="chat-messages">
+    <div id="typing-indicator">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+  </div>
+
+  <div id="attach-preview">
+    <img id="attach-thumb" src="" alt=""/>
+    <span id="attach-name"></span>
+    <button id="attach-remove">×</button>
+  </div>
+
+  <div id="chat-inputbar">
+    <button id="chat-attach-btn" title="Attach image">⌁</button>
+    <textarea id="chat-input" placeholder="say something..." rows="1"></textarea>
+    <button id="chat-send-btn">↑</button>
+  </div>
+  <input type="file" id="file-input" accept="image/*"/>
+</div>
+
+<!-- CANVAS OVERLAY -->
+<div id="canvas-overlay">
+  <div id="canvas-topbar">
+    <span id="canvas-label">canvas</span>
+    <button id="canvas-close-btn">close canvas</button>
+  </div>
+  <iframe id="canvas-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+  <div id="canvas-inputbar">
+    <input id="canvas-input" type="text" placeholder="tell Night to change something..."/>
+    <button id="canvas-send-btn">↑</button>
+  </div>
+</div>
+
+<!-- MODEL PICKER -->
+<div id="model-picker">
+  <div id="model-picker-inner">
+    <div id="model-picker-header">
+      <span>Choose model</span>
+      <button id="model-picker-close">×</button>
+    </div>
+    <input id="model-search" type="text" placeholder="Search models..."/>
+    <div id="model-list"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const state = {
+  apiKey: '',
+  model: 'openai/chatgpt-4o-latest',  // GLM model via Requesty
+  messages: [],   // chat history for the AI
+  pendingImage: null,  // { dataUrl, base64, mimeType }
+  canvasCode: '',
+  canvasOpen: false,
+};
+
+// ── MODELS available via Requesty ──
+const MODELS = [
+  { id: 'thudm/glm-4-9b-chat', label: 'GLM-4 9B' },
+  { id: 'thudm/glm-z1-32b', label: 'GLM-Z1 32B' },
+  { id: 'openai/chatgpt-4o-latest', label: 'GPT-4o (latest)' },
+  { id: 'openai/gpt-4o-mini', label: 'GPT-4o Mini' },
+  { id: 'openai/o4-mini', label: 'o4-mini' },
+  { id: 'anthropic/claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
+  { id: 'anthropic/claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { id: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+  { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B' },
+  { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B' },
+  { id: 'mistralai/mistral-large-latest', label: 'Mistral Large' },
+  { id: 'mistralai/mixtral-8x7b-instruct', label: 'Mixtral 8x7B' },
+  { id: 'deepseek/deepseek-chat', label: 'DeepSeek V3' },
+  { id: 'deepseek/deepseek-r1', label: 'DeepSeek R1' },
+  { id: 'qwen/qwen-2.5-72b-instruct', label: 'Qwen 2.5 72B' },
+  { id: 'perplexity/llama-3.1-sonar-large-128k-online', label: 'Perplexity Sonar Large' },
+];
+
+// ══════════════════════════════════════════
+//  NIGHT SYSTEM PROMPT
+// ══════════════════════════════════════════
+function buildSystemPrompt() {
+  const W = window.innerWidth, H = window.innerHeight;
+  return `You are Night, the AI inside OpenNight. You talk like a normal human — chill, direct, no spam emojis, no corporate fluff. You're helpful but you don't over-explain things.
+
+You have three special abilities:
+
+1. CODING / CANVAS
+When the user wants you to build, make, or code something visual (websites, apps, games, animations, art, etc.), you respond with your normal message AND then output a code block wrapped in a special tag like this:
+<canvas_code>
+<!DOCTYPE html>...full self-contained HTML...</canvas_code>
+The canvas is exactly ${W}px wide and ${H}px tall (minus ~90px for the top bar and input). Make sure your code fits and looks good at that size. Mobile-first. No external dependencies unless from cdnjs.
+
+2. IMAGE GENERATION
+When the user asks you to generate, create, draw, or make an image, respond naturally AND include this tag:
+<generate_image>detailed prompt describing the image</generate_image>
+Keep the prompt specific and visual.
+
+3. VISION
+If the user shares an image, you can see it (described to you) and should respond naturally about it.
+
+Important: only use <canvas_code> or <generate_image> when actually appropriate. Don't wrap normal text responses in them.`;
+}
+
+// ══════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function flash() {
+  const f = document.getElementById('flash');
+  f.classList.add('go');
+  setTimeout(() => f.classList.remove('go'), 500);
+}
+
+async function animateProgress(barId, duration) {
+  const bar = document.getElementById(barId);
+  const wrap = bar.parentElement;
+  if (wrap.id === 'progress-wrap') wrap.classList.add('show');
+  const steps = 200, delay = duration / steps;
+  for (let i = 0; i <= steps; i++) {
+    bar.style.width = (i / steps * 100) + '%';
+    await sleep(delay);
+  }
+}
+
+// ══════════════════════════════════════════
+//  CURSOR
+// ══════════════════════════════════════════
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+
+// ══════════════════════════════════════════
+//  BOOT SEQUENCE
+// ══════════════════════════════════════════
+const biosLines = [
+  'OPENNIGHT BIOS v1.0.0 (C) 2026','',
+  'CPU: Neural Engine 12-Core  3.49 GHz',
+  'Memory test... 16384MB OK',
+  'Storage controller... OK',
+  'Loading kernel modules...',
+  '  [OK] entropy_pool','  [OK] net_interface',
+  '  [OK] gfx_compositor','  [OK] auth_service',
+  '','Display adapters... 1 found',
+  'SECURE BOOT: ENABLED','Verifying signature... PASS','',
+  'Handing off to OpenNight loader...',
+];
+
+async function runBoot1() {
+  const container = document.getElementById('boot1-text');
+  document.getElementById('boot1').classList.add('glitch');
+  await sleep(400);
+  for (const line of biosLines) {
+    const span = document.createElement('span');
+    span.textContent = line || ' ';
+    container.appendChild(span);
+    await sleep(10); span.classList.add('show');
+    await sleep(line.startsWith('  ') ? 40 : 75);
+  }
+  await sleep(200);
+  document.getElementById('boot1-logo-wrap').classList.add('show');
+  await animateProgress('progress-bar', 2200);
+  await sleep(300);
+  flash(); await sleep(200);
+  runCutscene();
+}
+
+async function runCutscene() {
+  showScreen('cutscene');
+  const inner = document.getElementById('cutscene-inner');
+  inner.classList.add('show');
+  await sleep(2000);
+  const word = document.getElementById('cutscene-word');
+  word.classList.add('glitch'); await sleep(300); word.classList.remove('glitch');
+  await sleep(800);
+  flash(); await sleep(100);
+  showScreen('apiscreen');
+  document.getElementById('api-box').classList.add('show');
+}
+
+async function handleApiKey() {
+  const input = document.getElementById('api-input');
+  const val = input.value.trim();
+  if (!val) {
+    input.style.borderColor = 'rgba(255,80,80,.5)';
+    input.style.animation = 'shake .35s ease';
+    setTimeout(() => { input.style.borderColor = ''; input.style.animation = ''; }, 700);
+    return;
+  }
+  state.apiKey = val;
+  try { await document.documentElement.requestFullscreen(); } catch(e) {}
+  flash(); await sleep(200);
+  runBoot2();
+}
+
+document.getElementById('api-btn').addEventListener('click', handleApiKey);
+document.getElementById('api-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); handleApiKey(); }
+});
+
+async function runBoot2() {
+  showScreen('boot2');
+  await sleep(200);
+  document.getElementById('boot2-content').classList.add('show');
+  await sleep(800);
+  await animateProgress('macos-bar', 3500);
+  await sleep(600);
+  flash(); await sleep(200);
+  launchChat();
+}
+
+// ══════════════════════════════════════════
+//  CHAT LAUNCH
+// ══════════════════════════════════════════
+function launchChat() {
+  showScreen('chatscreen');
+  // Night's greeting
+  setTimeout(() => {
+    appendMessage('night', "hey. what's up?");
+  }, 600);
+}
+
+// ══════════════════════════════════════════
+//  MESSAGE RENDERING
+// ══════════════════════════════════════════
+function appendMessage(role, text, extra) {
+  const messages = document.getElementById('chat-messages');
+  const typingIndicator = document.getElementById('typing-indicator');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+
+  const sender = document.createElement('div');
+  sender.className = 'msg-sender';
+  sender.textContent = role === 'night' ? 'night' : 'you';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+
+  // if there's an image attachment to show
+  if (extra && extra.imageUrl) {
+    const img = document.createElement('img');
+    img.src = extra.imageUrl;
+    img.className = 'msg-image';
+    bubble.appendChild(img);
+  }
+
+  // render text (basic markdown-ish: code blocks)
+  const cleanText = text
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+      return `<pre><code>${escHtml(code.trim())}</code></pre>`;
+    })
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+
+  const textNode = document.createElement('span');
+  textNode.innerHTML = cleanText;
+  bubble.appendChild(textNode);
+
+  // generated image?
+  if (extra && extra.genImageUrl) {
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'gen-image-wrap';
+    const img = document.createElement('img');
+    img.src = extra.genImageUrl;
+    img.className = 'gen-image';
+    imgWrap.appendChild(img);
+    bubble.appendChild(imgWrap);
+  }
+
+  wrap.appendChild(sender);
+  wrap.appendChild(bubble);
+  messages.insertBefore(wrap, typingIndicator);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setTyping(on) {
+  document.getElementById('typing-indicator').classList.toggle('show', on);
+  const msgs = document.getElementById('chat-messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ══════════════════════════════════════════
+//  VISION — describe image via free Groq model
+// ══════════════════════════════════════════
+async function describeImage(base64, mimeType) {
+  // Use Groq's llama-3.2-11b-vision-preview (free tier)
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      // We'll use the user's key - if Groq fails we fall back gracefully
+      'Authorization': `Bearer ${state.apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+          { type: 'text', text: 'Describe this image in detail. Be factual and thorough.' }
+        ]
+      }]
+    })
+  });
+  if (!res.ok) {
+    // fallback — try via Requesty
+    return await describeImageViaRequesty(base64, mimeType);
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || 'I could see the image but couldn\'t describe it.';
+}
+
+async function describeImageViaRequesty(base64, mimeType) {
+  const res = await fetch('https://router.requesty.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${state.apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+          { type: 'text', text: 'Describe this image in detail.' }
+        ]
+      }]
+    })
+  });
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '[image attached]';
+}
+
+// ══════════════════════════════════════════
+//  CALL NIGHT (main LLM)
+// ══════════════════════════════════════════
+async function callNight(userText, imageDescription) {
+  const content = imageDescription
+    ? `${userText}\n\n[The user shared an image. Here's what it shows: ${imageDescription}]`
+    : userText;
+
+  state.messages.push({ role: 'user', content });
+
+  const res = await fetch('https://router.requesty.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${state.apiKey}`
+    },
+    body: JSON.stringify({
+      model: state.model,
+      max_tokens: 4096,
+      messages: [
+        { role: 'system', content: buildSystemPrompt() },
+        ...state.messages
+      ]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`API error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  const reply = data.choices?.[0]?.message?.content || '';
+  state.messages.push({ role: 'assistant', content: reply });
+  return reply;
+}
+
+// ══════════════════════════════════════════
+//  PARSE NIGHT'S REPLY
+// ══════════════════════════════════════════
+function parseReply(reply) {
+  let text = reply;
+  let canvasCode = null;
+  let imagePrompt = null;
+
+  // extract canvas code
+  const canvasMatch = text.match(/<canvas_code>([\s\S]*?)<\/canvas_code>/);
+  if (canvasMatch) {
+    canvasCode = canvasMatch[1].trim();
+    text = text.replace(/<canvas_code>[\s\S]*?<\/canvas_code>/, '').trim();
+  }
+
+  // extract image gen prompt
+  const imgMatch = text.match(/<generate_image>([\s\S]*?)<\/generate_image>/);
+  if (imgMatch) {
+    imagePrompt = imgMatch[1].trim();
+    text = text.replace(/<generate_image>[\s\S]*?<\/generate_image>/, '').trim();
+  }
+
+  return { text, canvasCode, imagePrompt };
+}
+
+// ══════════════════════════════════════════
+//  IMAGE GENERATION via Pollinations
+// ══════════════════════════════════════════
+async function generateImage(prompt) {
+  const encoded = encodeURIComponent(prompt);
+  const seed = Math.floor(Math.random() * 999999);
+  const url = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true`;
+  // Pollinations returns the image directly — just use the URL
+  return url;
+}
+
+// ══════════════════════════════════════════
+//  CANVAS
+// ══════════════════════════════════════════
+function openCanvas(html) {
+  state.canvasCode = html;
+  state.canvasOpen = true;
+  const frame = document.getElementById('canvas-frame');
+  frame.srcdoc = html;
+  document.getElementById('canvas-overlay').classList.add('open');
+}
+
+function closeCanvas() {
+  state.canvasOpen = false;
+  document.getElementById('canvas-overlay').classList.remove('open');
+}
+
+document.getElementById('canvas-close-btn').addEventListener('click', closeCanvas);
+
+// canvas input — tell Night to edit the code
+document.getElementById('canvas-send-btn').addEventListener('click', sendCanvasMessage);
+document.getElementById('canvas-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); sendCanvasMessage(); }
+});
+
+async function sendCanvasMessage() {
+  const input = document.getElementById('canvas-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  // append to chat as context
+  const editPrompt = `Edit the canvas code I just made. The user says: "${text}". Here is the current code:\n\`\`\`html\n${state.canvasCode}\n\`\`\`\nReturn the full updated code in <canvas_code> tags. Keep it self-contained.`;
+
+  state.messages.push({ role: 'user', content: editPrompt });
+  setTyping(true);
+
+  try {
+    const reply = await callNight('', null);
+    setTyping(false);
+    const parsed = parseReply(reply);
+    if (parsed.canvasCode) {
+      openCanvas(parsed.canvasCode);
+    }
+    if (parsed.text) {
+      appendMessage('night', parsed.text);
+    }
+  } catch(e) {
+    setTyping(false);
+    appendMessage('night', `hit an error: ${e.message}`);
+  }
+}
+
+// ══════════════════════════════════════════
+//  MAIN SEND
+// ══════════════════════════════════════════
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text && !state.pendingImage) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  // show user message
+  appendMessage('user', text || '(image)', state.pendingImage ? { imageUrl: state.pendingImage.dataUrl } : null);
+
+  // grab pending image then clear it
+  const img = state.pendingImage;
+  state.pendingImage = null;
+  document.getElementById('attach-preview').classList.remove('show');
+
+  // check for "close canvas" shortcut
+  const lower = text.toLowerCase();
+  if (lower.includes('close canvas') || lower.includes('close the canvas')) {
+    closeCanvas();
+    appendMessage('night', 'canvas closed.');
+    return;
+  }
+
+  setTyping(true);
+  try {
+    let imageDesc = null;
+    if (img) {
+      imageDesc = await describeImage(img.base64, img.mimeType);
+    }
+
+    const reply = await callNight(text, imageDesc);
+    setTyping(false);
+
+    const parsed = parseReply(reply);
+
+    // show text
+    let extra = null;
+
+    // generate image if needed
+    if (parsed.imagePrompt) {
+      const genUrl = await generateImage(parsed.imagePrompt);
+      extra = { genImageUrl: genUrl };
+    }
+
+    appendMessage('night', parsed.text || '...', extra);
+
+    // open canvas if code returned
+    if (parsed.canvasCode) {
+      setTimeout(() => openCanvas(parsed.canvasCode), 400);
+    }
+
+  } catch(e) {
+    setTyping(false);
+    appendMessage('night', `something went wrong — ${e.message}`);
+  }
+}
+
+document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+// auto-resize textarea
+document.getElementById('chat-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+});
+
+// ══════════════════════════════════════════
+//  FILE ATTACH
+// ══════════════════════════════════════════
+document.getElementById('chat-attach-btn').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const base64 = dataUrl.split(',')[1];
+    const mimeType = file.type;
+    state.pendingImage = { dataUrl, base64, mimeType };
+    document.getElementById('attach-thumb').src = dataUrl;
+    document.getElementById('attach-name').textContent = file.name;
+    document.getElementById('attach-preview').classList.add('show');
+  };
+  reader.readAsDataURL(file);
+  this.value = '';
+});
+
+document.getElementById('attach-remove').addEventListener('click', () => {
+  state.pendingImage = null;
+  document.getElementById('attach-preview').classList.remove('show');
+});
+
+// ══════════════════════════════════════════
+//  MODEL PICKER
+// ══════════════════════════════════════════
+function renderModelList(filter = '') {
+  const list = document.getElementById('model-list');
+  list.innerHTML = '';
+  const filtered = MODELS.filter(m =>
+    m.label.toLowerCase().includes(filter.toLowerCase()) ||
+    m.id.toLowerCase().includes(filter.toLowerCase())
+  );
+  filtered.forEach(m => {
+    const item = document.createElement('div');
+    item.className = 'model-item' + (m.id === state.model ? ' active' : '');
+    item.textContent = m.label;
+    item.addEventListener('click', () => {
+      state.model = m.id;
+      document.getElementById('topbar-model-btn').textContent = m.label;
+      closePicker();
+    });
+    list.appendChild(item);
+  });
+}
+
+function openPicker() {
+  renderModelList();
+  document.getElementById('model-picker').classList.add('open');
+  document.getElementById('model-search').value = '';
+  document.getElementById('model-search').focus();
+}
+function closePicker() {
+  document.getElementById('model-picker').classList.remove('open');
+}
+
+document.getElementById('topbar-model-btn').addEventListener('click', openPicker);
+document.getElementById('model-picker-close').addEventListener('click', closePicker);
+document.getElementById('model-picker').addEventListener('click', e => {
+  if (e.target === document.getElementById('model-picker')) closePicker();
+});
+document.getElementById('model-search').addEventListener('input', function() {
+  renderModelList(this.value);
+});
+
+// ══════════════════════════════════════════
+//  START
+// ══════════════════════════════════════════
+window.addEventListener('load', () => setTimeout(runBoot1, 300));
+</script>
+</body>
+</html>
